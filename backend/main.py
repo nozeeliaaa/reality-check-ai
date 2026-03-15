@@ -32,7 +32,7 @@ class AnalyzeRequest(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────
 def get_explanation(probability: float) -> str:
     if probability >= 0.90:
-        return "Very strong AI indicators detected. High confidence this image is AI-generated."
+        return "Very strong AI indicators detected. High confidence this image is in fact  AI-generated."
     elif probability >= 0.70:
         return "Strong AI indicators detected. This image shows patterns consistent with AI generation."
     elif probability >= 0.50:
