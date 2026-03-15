@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reality Check AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 280px;
+      background: #0D1117;
+      color: #E6EDF3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #21262D;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #00E5A0;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      flex: 1;
+    }
+    .header h1 span { color: #00B4D8; }
+
+    /* ── Current scan ── */
+    .current {
+      padding: 14px 16px;
+      border-bottom: 1px solid #21262D;
+    }
+    .current-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8B949E;
+      margin-bottom: 8px;
+    }
+    .score-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .score-big {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1;
+      color: #E6EDF3;
+    }
+    .score-big.high     { color: #FF2D55; }
+    .score-big.moderate { color: #FFB800; }
+    .score-big.low      { color: #00E5A0; }
+
+    .confidence-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: #161B22;
+    }
+    .confidence-badge.high     { color: #FF2D55; border: 1px solid rgba(255,45,85,0.4); }
+    .confidence-badge.moderate { color: #FFB800; border: 1px solid rgba(255,184,0,0.4); }
+    .confidence-badge.low      { color: #00E5A0; border: 1px solid rgba(0,229,160,0.4); }
+
+    .explanation {
+      font-size: 11px;
+      color: #8B949E;
+      line-height: 1.5;
+      margin-top: 4px;
+    }
+
+    /* ── Stats row ── */
+    .stats {
+      display: flex;
+      padding: 12px 16px;
+      gap: 8px;
+      border-bottom: 1px solid #21262D;
+    }
+    .stat {
+      flex: 1;
+      text-align: center;
+      padding: 8px 6px;
+      background: #161B22;
+      border-radius: 8px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .stat-value.high     { color: #FF2D55; }
+    .stat-value.moderate { color: #FFB800; }
+    .stat-value.low      { color: #00E5A0; }
+    .stat-value.neutral  { color: #E6EDF3; }
+    .stat-label {
+      font-size: 10px;
+      color: #8B949E;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    /* ── Actions ── */
+    .actions {
+      padding: 10px 16px 14px;
+      display: flex;
+      gap: 8px;
+    }
+    .btn {
+      flex: 1;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary {
+      background: #00B4D8;
+      color: #0D1117;
+    }
+    .btn-secondary {
+      background: #21262D;
+      color: #E6EDF3;
+      border: 1px solid #30363D;
+    }
+    .btn-secondary.paused {
+      background: #1A2B1E;
+      color: #00E5A0;
+      border-color: rgba(0,229,160,0.4);
+    }
+
+    .no-data {
+      color: #8B949E;
+      font-size: 12px;
+      padding: 4px 0;
+    }
+
+    /* ── Test overlay ── */
+    .test-section {
+      padding: 10px 16px 14px;
+      border-top: 1px solid #21262D;
+    }
+    .test-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #8B949E;
+      margin-bottom: 8px;
+    }
+    .test-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-test {
+      flex: 1;
+      padding: 6px 4px;
+      border-radius: 6px;
+      border: 1px solid;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      transition: opacity 0.15s;
+    }
+    .btn-test:hover { opacity: 0.75; }
+    .btn-test.high     { color: #FF2D55; border-color: rgba(255,45,85,0.4); }
+    .btn-test.moderate { color: #FFB800; border-color: rgba(255,184,0,0.4); }
+    .btn-test.low      { color: #00E5A0; border-color: rgba(0,229,160,0.4); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-dot" id="statusDot"></div>
+    <h1>Reality Check <span>AI</span></h1>
+  </div>
+
+  <div class="current">
+    <div class="current-label">Current Page</div>
+    <div id="noData" class="no-data">No scans yet on this tab.</div>
+    <div id="scanData" style="display:none">
+      <div class="score-row">
+        <span class="score-big" id="scoreBig">–</span>
+        <span class="confidence-badge" id="confidenceBadge">–</span>
+      </div>
+      <p class="explanation" id="explanation"></p>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value high" id="countHigh">0</div>
+      <div class="stat-label">High</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value moderate" id="countModerate">0</div>
+      <div class="stat-label">Moderate</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value low" id="countLow">0</div>
+      <div class="stat-label">Low</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value neutral" id="countTotal">0</div>
+      <div class="stat-label">Total</div>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <div class="test-label">Test Overlay</div>
+    <div class="test-btns">
+      <button type="button" class="btn-test high"     data-level="High">High</button>
+      <button type="button" class="btn-test moderate" data-level="Moderate">Moderate</button>
+      <button type="button" class="btn-test low"      data-level="Low">Low</button>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="dashboardBtn">Open Dashboard</button>
+    <button class="btn btn-secondary" id="toggleBtn">Pause</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
