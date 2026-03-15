@@ -51,8 +51,11 @@ async function loadToggleState() {
 
 function updateToggleBtn() {
   const btn = document.getElementById('toggleBtn');
+  const dot = document.getElementById('statusDot');
   btn.textContent = isScanning ? 'Pause' : 'Resume';
   btn.className   = isScanning ? 'btn btn-secondary' : 'btn btn-secondary paused';
+  dot.style.background = isScanning ? '' : '#8B949E';
+  dot.title = isScanning ? 'Scanning active' : 'Scanning paused';
 }
 
 document.getElementById('toggleBtn').addEventListener('click', async () => {

@@ -1,6 +1,24 @@
 // Reality Check AI — background.js
 const EC2_URL = "http://52.91.49.146:8000";
 
+// ─── In-memory scanning flag — updated immediately on storage change ──────
+// Avoids the async storage read race that let captures slip through.
+let scanningEnabled = false; // start false until we confirm state from storage
+
+chrome.storage.local.get(["scanning", "onboardingComplete"], (data) => {
+  scanningEnabled = data.onboardingComplete === true && data.scanning !== false;
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local") return;
+  if (changes.scanning || changes.onboardingComplete) {
+    chrome.storage.local.get(["scanning", "onboardingComplete"], (data) => {
+      scanningEnabled = data.onboardingComplete === true && data.scanning !== false;
+      console.log("Scanning state updated:", scanningEnabled);
+    });
+  }
+});
+
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
     chrome.tabs.create({ url: chrome.runtime.getURL("onboarding.html") });
@@ -70,16 +88,12 @@ function hammingDistance(h1, h2) {
   return d;
 }
 
-// ─── KEY FIX — use sender.tab directly from content.js message ────────────
 async function scanTab(tab) {
   if (!tab?.id || !tab?.url) return;
 
-  const data = await chrome.storage.local.get([
-    "scanning",
-    "onboardingComplete",
-  ]);
-  if (!data.scanning || !data.onboardingComplete) {
-    console.log("Scanning disabled or onboarding incomplete");
+  // Synchronous in-memory check — blocks capture immediately if paused
+  if (!scanningEnabled) {
+    console.log("Scanning paused — skipping");
     return;
   }
 
@@ -146,11 +160,11 @@ async function scanTab(tab) {
   }
 }
 
-// ─── Use sender.tab — this is ALWAYS the active tab that sent the message ──
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (
     ["SCROLL_SETTLED", "PAGE_LOADED", "NEW_CONTENT_LOADED"].includes(msg.type)
   ) {
+    if (!scanningEnabled) return; // blocked synchronously — no capture at all
     console.log("Received:", msg.type, "from:", sender.tab?.url);
     if (sender.tab) {
       scanTab(sender.tab);
