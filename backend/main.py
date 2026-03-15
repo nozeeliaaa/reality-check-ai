@@ -10,8 +10,9 @@ from pydantic import BaseModel
 from PIL import Image
 
 # ── Config ────────────────────────────────────────────────────
-HIVE_API_KEY = os.environ.get("HIVE_API_KEY", "YOUR_KEY_HERE")
-HIVE_URL = "https://api.thehive.ai/api/v3/hive/ai-generated-and-deepfake-content-detection"
+SIGHTENGINE_USER   = os.environ.get("SIGHTENGINE_USER", "YOUR_USER")
+SIGHTENGINE_SECRET = os.environ.get("SIGHTENGINE_SECRET", "YOUR_SECRET")
+SIGHTENGINE_URL    = "https://api.sightengine.com/1.0/check.json"
 
 # ── App ───────────────────────────────────────────────────────
 app = FastAPI(title="Reality Check AI", version="1.0")
@@ -26,13 +27,13 @@ app.add_middleware(
 
 # ── Request model ─────────────────────────────────────────────
 class AnalyzeRequest(BaseModel):
-    image: str        # base64 encoded JPEG from extension
-    tab_url: str = "" # URL of the tab being scanned
+    image: str
+    tab_url: str = ""
 
 # ── Helpers ───────────────────────────────────────────────────
 def get_explanation(probability: float) -> str:
-    if probability >= 0.90:
-        return "Very strong AI indicators detected. High confidence this image is in fact  AI-generated."
+    if probability >= 0.85:
+        return "Very strong AI indicators detected. High confidence this image is AI-generated."
     elif probability >= 0.70:
         return "Strong AI indicators detected. This image shows patterns consistent with AI generation."
     elif probability >= 0.50:
@@ -49,73 +50,53 @@ def get_confidence_level(probability: float) -> str:
         return "Moderate"
     return "Low"
 
-def call_hive(image_b64: str) -> dict:
+def call_sightengine(image_bytes: bytes) -> float:
     try:
         response = requests.post(
-            HIVE_URL,
-            headers={
-                "authorization": f"Bearer {HIVE_API_KEY}",
-                "Content-Type": "application/json"
+            SIGHTENGINE_URL,
+            data={
+                "models": "genai",
+                "api_user": SIGHTENGINE_USER,
+                "api_secret": SIGHTENGINE_SECRET
             },
-            json={
-                "input": [
-                    {"media_base64": image_b64}
-                ]
-            },
+            files={"media": ("image.jpg", image_bytes, "image/jpeg")},
             timeout=15
         )
         response.raise_for_status()
-        classes = response.json()["output"][0]["classes"]
-
-        ai_score = 0.0
-        deepfake_score = 0.0
-
-        for c in classes:
-            if c["class"] == "ai_generated":
-                ai_score = round(float(c["value"]), 4)
-            if c["class"] == "deepfake":
-                deepfake_score = round(float(c["value"]), 4)
-
-        return {"ai_score": ai_score, "deepfake_score": deepfake_score}
-
+        data = response.json()
+        print(f"Sightengine response: {data}")
+        return round(float(data["type"]["ai_generated"]), 4)
     except Exception as e:
-        print(f"Hive API error: {e}")
-        return {"ai_score": 0.0, "deepfake_score": 0.0}
+        print(f"Sightengine error: {e}")
+        return 0.0
 
 # ── Endpoints ─────────────────────────────────────────────────
 @app.get("/health")
 def health():
-    return {"status": "ok", "model": "hive-v3", "version": "1.0"}
+    return {"status": "ok", "model": "sightengine", "version": "1.0"}
 
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
     start = time.time()
 
     try:
-        # Strip data URL prefix if present
         if "," in req.image:
-            image_b64 = req.image.split(",")[1]
+            image_data = base64.b64decode(req.image.split(",")[1])
         else:
-            image_b64 = req.image
+            image_data = base64.b64decode(req.image)
 
-        # Compress image before sending
-        image_data = base64.b64decode(image_b64)
         image = Image.open(io.BytesIO(image_data)).convert("RGB")
         buffer = io.BytesIO()
         image.save(buffer, format="JPEG", quality=85)
-        compressed_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        image_bytes = buffer.getvalue()
 
-        # Call Hive V3
-        scores = call_hive(compressed_b64)
-
-        ai_probability = scores["ai_score"]
+        ai_probability = call_sightengine(image_bytes)
         elapsed = round((time.time() - start) * 1000)
 
         return JSONResponse({
             "ai_probability": ai_probability,
             "confidence_level": get_confidence_level(ai_probability),
             "explanation": get_explanation(ai_probability),
-            "deepfake_score": scores["deepfake_score"],
             "inference_time_ms": elapsed
         })
 
