@@ -12,13 +12,7 @@
     "tabCapture"
   ],
   "host_permissions": [
-    "*://*.facebook.com/*",
-    "*://*.instagram.com/*",
-    "*://*.twitter.com/*",
-    "*://*.x.com/*",
-    "*://*.linkedin.com/*",
-    "*://*.reddit.com/*",
-    "*://*.tiktok.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js"
