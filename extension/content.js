@@ -12,7 +12,7 @@
         setTimeout(connectPort, 1000);
       });
     } catch (e) {
-      // Extension context invalidated — stop trying
+      // Extension context invalidated
     }
   }
   connectPort();
@@ -117,5 +117,51 @@
   chrome.storage.local.get('history', ({ history }) => {
     if (history && history.length > 0) updateBadge(history[0]);
   });
+
+  // ─── Scroll detection ──────────────────────────────────────────────────
+  let scrollTimer = null;
+  let lastScanScrollY = -999;
+  const SCROLL_THRESHOLD = 150;
+  const SCROLL_SETTLE_DELAY = 600;
+
+  window.addEventListener('scroll', () => {
+    if (scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const distance = Math.abs(window.scrollY - lastScanScrollY);
+      if (distance >= SCROLL_THRESHOLD) {
+        lastScanScrollY = window.scrollY;
+        try {
+          chrome.runtime.sendMessage({ type: 'SCROLL_SETTLED' });
+        } catch (e) {}
+      }
+    }, SCROLL_SETTLE_DELAY);
+  }, { passive: true });
+
+  // ─── Initial page load scan ────────────────────────────────────────────
+  setTimeout(() => {
+    lastScanScrollY = window.scrollY;
+    try {
+      chrome.runtime.sendMessage({ type: 'PAGE_LOADED' });
+    } catch (e) {}
+  }, 1500);
+
+  // ─── New content loaded via infinite scroll ────────────────────────────
+  const observer = new MutationObserver((mutations) => {
+    const hasNewImages = mutations.some(m =>
+      Array.from(m.addedNodes).some(node =>
+        node.nodeName === 'IMG' ||
+        (node.querySelectorAll && node.querySelectorAll('img').length > 0)
+      )
+    );
+    if (hasNewImages) {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        try {
+          chrome.runtime.sendMessage({ type: 'NEW_CONTENT_LOADED' });
+        } catch (e) {}
+      }, 800);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 
 })();
