@@ -11,23 +11,25 @@
         if (chrome.runtime.lastError) return;
         setTimeout(connectPort, 1000);
       });
-    } catch (e) {
-      // Extension context invalidated
-    }
+    } catch (e) {}
   }
   connectPort();
 
   // ─── Build badge DOM ───────────────────────────────────────────────────
   const badge = document.createElement('div');
   badge.id = 'rcai-badge';
+  // Start collapsed
+  badge.classList.add('rcai-collapsed');
+
   badge.innerHTML = `
     <div class="rcai-icon-zone">
       <span class="rcai-icon-symbol">◎</span>
+      <span class="rcai-mini-score">–</span>
     </div>
     <div class="rcai-body">
       <div class="rcai-top-row">
-        <span class="rcai-brand">Reality Check AI</span>
-        <button class="rcai-close" title="Dismiss">✕</button>
+        <span class="rcai-brand">Reality Check <b>AI</b></span>
+        <button class="rcai-close" title="Collapse">✕</button>
       </div>
       <div class="rcai-verdict">Scanning…</div>
       <div class="rcai-meter-row">
@@ -48,8 +50,34 @@
   }
   injectBadge();
 
-  badge.querySelector('.rcai-close').addEventListener('click', () => {
-    badge.style.display = 'none';
+  // ─── Expand / collapse ────────────────────────────────────────────────
+  let isExpanded = false;
+
+  function expand() {
+    if (isExpanded) return;
+    isExpanded = true;
+    badge.classList.remove('rcai-collapsed');
+    badge.classList.add('rcai-expanding');
+    badge.addEventListener('transitionend', () => {
+      badge.classList.remove('rcai-expanding');
+    }, { once: true });
+  }
+
+  function collapse() {
+    if (!isExpanded) return;
+    isExpanded = false;
+    badge.classList.add('rcai-collapsed');
+  }
+
+  // Click the icon zone (pill) to expand
+  badge.querySelector('.rcai-icon-zone').addEventListener('click', () => {
+    if (!isExpanded) expand();
+  });
+
+  // Close button collapses back to pill
+  badge.querySelector('.rcai-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    collapse();
   });
 
   // ─── Level config ──────────────────────────────────────────────────────
@@ -81,8 +109,9 @@
   }
 
   // ─── Update badge ──────────────────────────────────────────────────────
-  const percentEl = badge.querySelector('.rcai-percent');
-  const verdictEl = badge.querySelector('.rcai-verdict');
+  const percentEl   = badge.querySelector('.rcai-percent');
+  const miniScoreEl = badge.querySelector('.rcai-mini-score');
+  const verdictEl   = badge.querySelector('.rcai-verdict');
 
   function updateBadge({ ai_probability, confidence_level, explanation }) {
     if (ai_probability === undefined || ai_probability === null) return;
@@ -97,6 +126,9 @@
     badge.style.display = '';
 
     animateCount(percentEl, pct, 700);
+    // Mini score in pill — instant set (no animate needed for small text)
+    miniScoreEl.textContent = pct + '%';
+
     popElement(verdictEl);
     popElement(percentEl);
 
@@ -121,7 +153,7 @@
   // ─── Scroll detection ──────────────────────────────────────────────────
   let scrollTimer = null;
   let lastScanScrollY = -999;
-  const SCROLL_THRESHOLD = 150;
+  const SCROLL_THRESHOLD  = 150;
   const SCROLL_SETTLE_DELAY = 600;
 
   window.addEventListener('scroll', () => {
@@ -130,9 +162,7 @@
       const distance = Math.abs(window.scrollY - lastScanScrollY);
       if (distance >= SCROLL_THRESHOLD) {
         lastScanScrollY = window.scrollY;
-        try {
-          chrome.runtime.sendMessage({ type: 'SCROLL_SETTLED' });
-        } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'SCROLL_SETTLED' }); } catch (e) {}
       }
     }, SCROLL_SETTLE_DELAY);
   }, { passive: true });
@@ -140,9 +170,7 @@
   // ─── Initial page load scan ────────────────────────────────────────────
   setTimeout(() => {
     lastScanScrollY = window.scrollY;
-    try {
-      chrome.runtime.sendMessage({ type: 'PAGE_LOADED' });
-    } catch (e) {}
+    try { chrome.runtime.sendMessage({ type: 'PAGE_LOADED' }); } catch (e) {}
   }, 1500);
 
   // ─── New content loaded via infinite scroll ────────────────────────────
@@ -156,9 +184,7 @@
     if (hasNewImages) {
       if (scrollTimer) clearTimeout(scrollTimer);
       scrollTimer = setTimeout(() => {
-        try {
-          chrome.runtime.sendMessage({ type: 'NEW_CONTENT_LOADED' });
-        } catch (e) {}
+        try { chrome.runtime.sendMessage({ type: 'NEW_CONTENT_LOADED' }); } catch (e) {}
       }, 800);
     }
   });

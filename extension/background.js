@@ -137,6 +137,7 @@ async function scanTab(tab) {
         probability: result.ai_probability,
         confidence_level: result.confidence_level,
         explanation: result.explanation,
+        screenshot: screenshot,
       });
       chrome.storage.local.set({ history: history.slice(0, 200) });
     });

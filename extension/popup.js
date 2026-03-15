@@ -78,7 +78,32 @@ document.querySelectorAll('.btn-test').forEach(btn => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab?.id) return;
     const data = TEST_DATA[btn.dataset.level];
+
+    // Capture screenshot of the current tab before showing the overlay
+    let screenshot;
+    try {
+      screenshot = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality: 65 });
+    } catch (e) {
+      console.log('Screenshot capture failed:', e.message);
+    }
+
+    // Push a real history record so dashboard + stats reflect this test
+    const { history = [] } = await chrome.storage.local.get(['history']);
+    history.unshift({
+      timestamp: new Date().toISOString(),
+      url: tab.url,
+      probability: data.ai_probability,
+      confidence_level: data.confidence_level,
+      explanation: data.explanation,
+      screenshot: screenshot,
+    });
+    await chrome.storage.local.set({ history: history.slice(0, 200) });
+
+    // Show result on the in-page overlay badge
     chrome.tabs.sendMessage(tab.id, { type: 'SCAN_RESULT', data });
+
+    // Refresh popup stats immediately
+    loadStats();
   });
 });
 
