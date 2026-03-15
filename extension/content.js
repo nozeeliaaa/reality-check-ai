@@ -37,6 +37,7 @@
         <span class="rcai-percent">–</span>
       </div>
       <p class="rcai-explanation">Waiting for first scan result.</p>
+      <button class="rcai-dashboard-btn">Open Dashboard ↗</button>
     </div>
   `;
 
@@ -78,6 +79,12 @@
   badge.querySelector('.rcai-close').addEventListener('click', (e) => {
     e.stopPropagation();
     collapse();
+  });
+
+  // Open Dashboard button
+  badge.querySelector('.rcai-dashboard-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    window.open(chrome.runtime.getURL('dashboard/index.html'));
   });
 
   // ─── Level config ──────────────────────────────────────────────────────

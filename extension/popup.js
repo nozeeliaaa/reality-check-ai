@@ -107,6 +107,11 @@ document.querySelectorAll('.btn-test').forEach(btn => {
   });
 });
 
+// ── Live updates — re-render whenever history changes ──────────────────────
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.history) loadStats();
+});
+
 // ── Init ───────────────────────────────────────────────────────────────────
 loadStats();
 loadToggleState();
