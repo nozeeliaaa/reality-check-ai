@@ -1,33 +1,38 @@
-name: Deploy
+name: Deploy Backend to EC2
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy.yml'
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
         with:
-          node-version: 18
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/reality-check-ai
+            git pull origin main
+            cd backend
+            source venv/bin/activate
+            pip install -r requirements.txt -q
+            pkill uvicorn || true
+            sleep 2
+            export HIVE_API_KEY='0glZLwYOcvXAdiIx1CTCWg=='
+            nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
+            echo "Deployed"
 
-      - name: Install dependencies
+      - name: Verify
         run: |
-          cd dashboard
-          npm install
-
-      - name: Build dashboard
-        run: |
-          cd dashboard
-          npm run build
-
-      - name: Install Python dependencies
-        run: |
-          cd backend
-          pip install -r requirements.txt
+          sleep 8
+          curl -f http://${{ secrets.EC2_HOST }}:8000/health
