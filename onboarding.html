@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reality Check AI — Setup</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black:   #050508;
+      --navy:    #0D1120;
+      --surface: #111828;
+      --border:  rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.13);
+      --cyan:    #00D4FF;
+      --red:     #FF2D55;
+      --green:   #00E5A0;
+      --text:    #E2E8F4;
+      --muted:   rgba(226,232,244,0.5);
+      --faint:   rgba(226,232,244,0.22);
+      --mono:    'DM Mono', monospace;
+    }
+
+    html, body {
+      min-height: 100vh;
+      background: var(--black);
+      color: var(--text);
+      font-family: var(--mono);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ── Noise overlay ── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: .4;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* ── Header ── */
+    .header {
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      font-size: 11px;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 20px;
+    }
+
+    .headline {
+      font-size: 32px;
+      font-weight: 500;
+      line-height: 1.2;
+      letter-spacing: -.01em;
+      margin-bottom: 16px;
+    }
+
+    .headline span { color: var(--cyan); }
+
+    .subline {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--muted);
+      max-width: 440px;
+    }
+
+    .subline strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 32px 0;
+    }
+
+    /* ── Section label ── */
+    .section-label {
+      font-size: 9px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--faint);
+      margin-bottom: 16px;
+    }
+
+    /* ── Site list ── */
+    .site-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 32px;
+    }
+
+    .site-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      background: var(--navy);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: border-color .15s;
+    }
+
+    .site-row:hover {
+      border-color: var(--border2);
+    }
+
+    .site-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .site-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: .02em;
+    }
+
+    .site-domain {
+      font-size: 10px;
+      color: var(--faint);
+      letter-spacing: .04em;
+    }
+
+    /* ── Toggle ── */
+    .toggle-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .toggle-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-label {
+      display: block;
+      width: 36px;
+      height: 20px;
+      background: rgba(0,212,255,0.25);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background .2s;
+      position: relative;
+      border: 1px solid rgba(0,212,255,0.3);
+    }
+
+    .toggle-input:not(:checked) + .toggle-label {
+      background: var(--surface);
+      border-color: var(--border2);
+    }
+
+    .toggle-label::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: var(--cyan);
+      border-radius: 50%;
+      top: 2px;
+      left: 18px;
+      transition: left .2s, background .2s;
+    }
+
+    .toggle-input:not(:checked) + .toggle-label::after {
+      left: 2px;
+      background: rgba(226,232,244,0.2);
+    }
+
+    /* ── Privacy note ── */
+    .privacy-note {
+      background: var(--navy);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--cyan);
+      border-radius: 4px;
+      padding: 16px 20px;
+      font-size: 11px;
+      line-height: 1.8;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+
+    .privacy-note strong {
+      color: var(--cyan);
+      font-weight: 500;
+    }
+
+    /* ── Button ── */
+    .btn {
+      width: 100%;
+      padding: 16px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.3);
+      border-radius: 6px;
+      color: var(--cyan);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+
+    .btn:hover {
+      background: rgba(0,212,255,0.14);
+      border-color: rgba(0,212,255,0.5);
+    }
+
+    .btn:active {
+      background: rgba(0,212,255,0.2);
+    }
+
+    /* ── Footer note ── */
+    .footer-note {
+      text-align: center;
+      font-size: 10px;
+      color: var(--faint);
+      margin-top: 20px;
+      letter-spacing: .04em;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <div class="header">
+    <div class="logo">Reality Check AI</div>
+    <h1 class="headline">
+      Real-time detection.<br>
+      <span>Privacy first.</span>
+    </h1>
+    <p class="subline">
+      Reality Check AI detects AI-generated images as you browse.
+      <strong>It only activates on the sites you approve below</strong>
+      and will never run on banking, email, medical, or any other site.
+    </p>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-label">Select sites to monitor</div>
+
+  <div class="site-list">
+
+    <div class="site-row">
+      <div class="site-info">
+        <span class="site-name">Facebook</span>
+        <span class="site-domain">facebook.com</span>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle-input" id="t-facebook" data-site="facebook" checked>
+        <label class="toggle-label" for="t-facebook"></label>
+      </div>
+    </div>
+
+    <div class="site-row">
+      <div class="site-info">
+        <span class="site-name">Instagram</span>
+        <span class="site-domain">instagram.com</span>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle-input" id="t-instagram" data-site="instagram" checked>
+        <label class="toggle-label" for="t-instagram"></label>
+      </div>
+    </div>
+
+    <div class="site-row">
+      <div class="site-info">
+        <span class="site-name">X / Twitter</span>
+        <span class="site-domain">x.com · twitter.com</span>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle-input" id="t-twitter" data-site="twitter" checked>
+        <label class="toggle-label" for="t-twitter"></label>
+      </div>
+    </div>
+
+    <div class="site-row">
+      <div class="site-info">
+        <span class="site-name">LinkedIn</span>
+        <span class="site-domain">linkedin.com</span>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle-input" id="t-linkedin" data-site="linkedin" checked>
+        <label class="toggle-label" for="t-linkedin"></label>
+      </div>
+    </div>
+
+    <div class="site-row">
+      <div class="site-info">
+        <span class="site-name">Reddit</span>
+        <span class="site-domain">reddit.com</span>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle-input" id="t-reddit" data-site="reddit" checked>
+        <label class="toggle-label" for="t-reddit"></label>
+      </div>
+    </div>
+
+    <div class="site-row">
+      <div class="site-info">
+        <span class="site-name">TikTok</span>
+        <span class="site-domain">tiktok.com</span>
+      </div>
+      <div class="toggle-wrap">
+        <input type="checkbox" class="toggle-input" id="t-tiktok" data-site="tiktok" checked>
+        <label class="toggle-label" for="t-tiktok"></label>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="privacy-note">
+    <strong>What leaves your device:</strong> Screenshots of approved sites
+    are sent to our detection server for analysis only. Images are never
+    stored — only the probability score is saved locally on your machine.
+    Reality Check AI will <strong>never</strong> activate on any site
+    not listed above.
+  </div>
+
+  <button class="btn" id="continueBtn">
+    Approve and Start
+  </button>
+
+  <p class="footer-note">
+    You can change approved sites at any time from the extension settings.
+  </p>
+
+</div>
+
+<script>
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    const approved = {};
+    document.querySelectorAll('.toggle-input').forEach(t => {
+      approved[t.dataset.site] = t.checked;
+    });
+
+    chrome.storage.local.set({
+      onboardingComplete: true,
+      approvedSites: approved,
+      scanning: true
+    }, () => {
+      window.close();
+    });
+  });
+</script>
+</body>
+</html>

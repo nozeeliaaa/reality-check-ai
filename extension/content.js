@@ -5,8 +5,15 @@
   // ─── Keep background service worker alive ─────────────────────────────
   let port;
   function connectPort() {
-    port = chrome.runtime.connect({ name: 'rcai-keepalive' });
-    port.onDisconnect.addListener(() => setTimeout(connectPort, 1000));
+    try {
+      port = chrome.runtime.connect({ name: 'rcai-keepalive' });
+      port.onDisconnect.addListener(() => {
+        if (chrome.runtime.lastError) return;
+        setTimeout(connectPort, 1000);
+      });
+    } catch (e) {
+      // Extension context invalidated
+    }
   }
   connectPort();
 
@@ -30,7 +37,16 @@
       <p class="rcai-explanation">Waiting for first scan result.</p>
     </div>
   `;
-  document.body.appendChild(badge);
+
+  // ─── Safe body injection ───────────────────────────────────────────────
+  function injectBadge() {
+    if (document.body) {
+      document.body.appendChild(badge);
+    } else {
+      setTimeout(injectBadge, 100);
+    }
+  }
+  injectBadge();
 
   badge.querySelector('.rcai-close').addEventListener('click', () => {
     badge.style.display = 'none';
@@ -43,7 +59,7 @@
     Low:      { symbol: '✓',  verdict: 'Authentic'    },
   };
 
-  // ─── Count-up animation for the score number ───────────────────────────
+  // ─── Count-up animation ────────────────────────────────────────────────
   function animateCount(el, target, duration) {
     const start     = parseInt(el.textContent) || 0;
     const startTime = performance.now();
@@ -56,7 +72,7 @@
     requestAnimationFrame(tick);
   }
 
-  // ─── Trigger CSS pop animations on verdict + score ─────────────────────
+  // ─── Pop animations ────────────────────────────────────────────────────
   function popElement(el) {
     el.classList.remove('rcai-updated');
     void el.offsetWidth;
@@ -64,19 +80,20 @@
     el.addEventListener('animationend', () => el.classList.remove('rcai-updated'), { once: true });
   }
 
-  // ─── Update badge with scan result ─────────────────────────────────────
+  // ─── Update badge ──────────────────────────────────────────────────────
   const percentEl = badge.querySelector('.rcai-percent');
   const verdictEl = badge.querySelector('.rcai-verdict');
 
   function updateBadge({ ai_probability, confidence_level, explanation }) {
+    if (ai_probability === undefined || ai_probability === null) return;
     const pct = Math.round(ai_probability * 100);
     const cfg = LEVEL_CONFIG[confidence_level] || { symbol: '◎', verdict: confidence_level };
 
     badge.dataset.level = confidence_level;
-    badge.querySelector('.rcai-icon-symbol').textContent  = cfg.symbol;
-    verdictEl.textContent                                 = cfg.verdict;
-    badge.querySelector('.rcai-bar-fill').style.width     = `${pct}%`;
-    badge.querySelector('.rcai-explanation').textContent  = explanation;
+    badge.querySelector('.rcai-icon-symbol').textContent = cfg.symbol;
+    verdictEl.textContent                                = cfg.verdict;
+    badge.querySelector('.rcai-bar-fill').style.width    = `${pct}%`;
+    badge.querySelector('.rcai-explanation').textContent = explanation || '';
     badge.style.display = '';
 
     animateCount(percentEl, pct, 700);
@@ -91,16 +108,60 @@
     }
   }
 
-  // ─── Listen for messages from background.js ────────────────────────────
-  // CHANGED: type is now SCAN_RESULT, data is in msg.data
+  // ─── Listen for messages ───────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'SCAN_RESULT') updateBadge(msg.data);
   });
 
-  // ─── Restore last result on page load ──────────────────────────────────
-  // CHANGED: reads from history array instead of latestScan
+  // ─── Restore last result on page load ─────────────────────────────────
   chrome.storage.local.get('history', ({ history }) => {
     if (history && history.length > 0) updateBadge(history[0]);
   });
+
+  // ─── Scroll detection ──────────────────────────────────────────────────
+  let scrollTimer = null;
+  let lastScanScrollY = -999;
+  const SCROLL_THRESHOLD = 150;
+  const SCROLL_SETTLE_DELAY = 600;
+
+  window.addEventListener('scroll', () => {
+    if (scrollTimer) clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(() => {
+      const distance = Math.abs(window.scrollY - lastScanScrollY);
+      if (distance >= SCROLL_THRESHOLD) {
+        lastScanScrollY = window.scrollY;
+        try {
+          chrome.runtime.sendMessage({ type: 'SCROLL_SETTLED' });
+        } catch (e) {}
+      }
+    }, SCROLL_SETTLE_DELAY);
+  }, { passive: true });
+
+  // ─── Initial page load scan ────────────────────────────────────────────
+  setTimeout(() => {
+    lastScanScrollY = window.scrollY;
+    try {
+      chrome.runtime.sendMessage({ type: 'PAGE_LOADED' });
+    } catch (e) {}
+  }, 1500);
+
+  // ─── New content loaded via infinite scroll ────────────────────────────
+  const observer = new MutationObserver((mutations) => {
+    const hasNewImages = mutations.some(m =>
+      Array.from(m.addedNodes).some(node =>
+        node.nodeName === 'IMG' ||
+        (node.querySelectorAll && node.querySelectorAll('img').length > 0)
+      )
+    );
+    if (hasNewImages) {
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        try {
+          chrome.runtime.sendMessage({ type: 'NEW_CONTENT_LOADED' });
+        } catch (e) {}
+      }, 800);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 
 })();

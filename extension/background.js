@@ -1,5 +1,4 @@
-// Reality Check AI — background.js
-const EC2_URL = "http://52.91.49.146:8000";
+const EC2_URL = "http://52.91.49.146:8000"
 
 // ─── Open onboarding on first install ─────────────────────────────────────
 chrome.runtime.onInstalled.addListener((details) => {
@@ -17,7 +16,7 @@ chrome.runtime.onConnect.addListener((port) => {
   }
 });
 
-// ─── Site domain mapping ───────────────────────────────────────────────────
+// Site domain mapping
 const SITE_DOMAINS = {
   facebook: ["facebook.com"],
   instagram: ["instagram.com"],
@@ -40,41 +39,30 @@ async function isApprovedSite(url) {
   });
 }
 
-// ─── Listen for scroll events from content.js ─────────────────────────────
+// Listen for scroll events from content.js
 chrome.runtime.onMessage.addListener((msg, sender) => {
-  if (
-    ["SCROLL_SETTLED", "PAGE_LOADED", "NEW_CONTENT_LOADED"].includes(msg.type)
-  ) {
-    scanTab(sender.tab);
+  if (["SCROLL_SETTLED", "PAGE_LOADED", "NEW_CONTENT_LOADED"].includes(msg.type)) {
+    scanTab(sender.tab)
   }
-});
+})
 
-// ─── Hash comparison to avoid duplicate scans ─────────────────────────────
-let lastScreenshotHash = null;
+let lastScreenshotHash = null
 
 async function getImageHash(base64Image) {
-  try {
-    const response = await fetch(base64Image);
-    const blob = await response.blob();
-    const bitmap = await createImageBitmap(blob);
-    const canvas = new OffscreenCanvas(16, 16);
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(bitmap, 0, 0, 16, 16);
-    const imageData = ctx.getImageData(0, 0, 16, 16);
-    const pixels = imageData.data;
-    const grayscale = [];
-    for (let i = 0; i < pixels.length; i += 4) {
-      grayscale.push(
-        Math.round(
-          pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114,
-        ),
-      );
-    }
-    const mean = grayscale.reduce((a, b) => a + b, 0) / grayscale.length;
-    return grayscale.map((p) => (p >= mean ? "1" : "0")).join("");
-  } catch (e) {
-    return null;
+  const response = await fetch(base64Image)
+  const blob = await response.blob()
+  const bitmap = await createImageBitmap(blob)
+  const canvas = new OffscreenCanvas(16, 16)
+  const ctx = canvas.getContext("2d")
+  ctx.drawImage(bitmap, 0, 0, 16, 16)
+  const imageData = ctx.getImageData(0, 0, 16, 16)
+  const pixels = imageData.data
+  const grayscale = []
+  for (let i = 0; i < pixels.length; i += 4) {
+    grayscale.push(Math.round(pixels[i] * 0.299 + pixels[i+1] * 0.587 + pixels[i+2] * 0.114))
   }
+  const mean = grayscale.reduce((a, b) => a + b, 0) / grayscale.length
+  return grayscale.map(p => p >= mean ? "1" : "0").join("")
 }
 
 function hammingDistance(h1, h2) {
@@ -85,65 +73,43 @@ function hammingDistance(h1, h2) {
   return d;
 }
 
-// ─── Main scan function ────────────────────────────────────────────────────
 async function scanTab(tab) {
-  if (!tab?.id || !tab?.url) return;
-
-  const data = await chrome.storage.local.get([
-    "scanning",
-    "onboardingComplete",
-  ]);
-  if (!data.scanning || !data.onboardingComplete) return;
-
-  const approved = await isApprovedSite(tab.url);
-  if (!approved) return;
+  if (!tab?.id || !tab?.url) return
+  const data = await chrome.storage.local.get(["scanning", "onboardingComplete"])
+  if (!data.scanning || !data.onboardingComplete) return
+  const approved = await isApprovedSite(tab.url)
+  if (!approved) return
 
   try {
-    // Capture screenshot
-    const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId, {
-      format: "jpeg",
-      quality: 70,
-    });
+    const screenshot = await chrome.tabs.captureVisibleTab(
+      tab.windowId,
+      { format: "jpeg", quality: 70 }
+    )
 
     // Hash check — skip if content has not changed enough
-    const currentHash = await getImageHash(screenshot);
-    if (currentHash && lastScreenshotHash) {
-      const distance = hammingDistance(currentHash, lastScreenshotHash);
-      const similarity = 1 - distance / currentHash.length;
-      if (similarity > 0.92) {
-        console.log("Skipping — content unchanged");
-        return;
-      }
+    const currentHash = await getImageHash(screenshot)
+    if (lastScreenshotHash) {
+      const distance = hammingDistance(currentHash, lastScreenshotHash)
+      const similarity = 1 - (distance / currentHash.length)
+      if (similarity > 0.92) return
     }
     lastScreenshotHash = currentHash;
 
     // Call EC2 backend
+    console.log("Sending to EC2...")
     const response = await fetch(`${EC2_URL}/analyze`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        image: screenshot,
-        tab_url: tab.url,
-      }),
-    });
+      body: JSON.stringify({ image: screenshot, tab_url: tab.url })
+    })
 
-    if (!response.ok) {
-      console.log("Backend error:", response.status);
-      return;
-    }
+    const result = await response.json()
 
-    const result = await response.json();
-    console.log("Scan result:", result.confidence_level, result.ai_probability);
-
-    // Send result to content.js
-    try {
-      await chrome.tabs.sendMessage(tab.id, {
-        type: "SCAN_RESULT",
-        data: result,
-      });
-    } catch (e) {
-      console.log("Could not send to tab — content script not ready");
-    }
+    // Send to overlay
+    chrome.tabs.sendMessage(tab.id, {
+      type: "SCAN_RESULT",
+      data: result
+    })
 
     // Save to history
     chrome.storage.local.get(["history"], (stored) => {
@@ -158,6 +124,6 @@ async function scanTab(tab) {
       chrome.storage.local.set({ history: history.slice(0, 200) });
     });
   } catch (err) {
-    console.log("Scan error:", err.message);
+    console.log("Scan error:", err)
   }
 }
