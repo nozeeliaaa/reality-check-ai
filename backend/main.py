@@ -32,21 +32,17 @@ class AnalyzeRequest(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────
 def get_explanation(probability: float) -> str:
-    if probability >= 0.85:
-        return "Very strong AI indicators detected. High confidence this image is AI-generated."
-    elif probability >= 0.70:
-        return "Strong AI indicators detected. This image shows patterns consistent with AI generation."
-    elif probability >= 0.50:
+    if probability >= 0.30:
+        return "Strong AI indicators detected. High confidence this image is AI-generated."
+    elif probability >= 0.10:
         return "Moderate AI indicators detected. This image may have been AI-generated."
-    elif probability >= 0.40:
-        return "Weak AI indicators present. Treat with mild caution."
     else:
         return "No significant AI artifacts detected. This image appears to be authentic."
 
 def get_confidence_level(probability: float) -> str:
-    if probability >= 0.70:
+    if probability >= 0.30:
         return "High"
-    elif probability >= 0.40:
+    elif probability >= 0.10:
         return "Moderate"
     return "Low"
 
