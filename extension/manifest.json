@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Reality Check AI",
+  "version": "1.0",
+  "description": "Real-time AI image detection on social media",
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.facebook.com/*",
+    "https://*.instagram.com/*",
+    "https://*.twitter.com/*",
+    "https://*.x.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.reddit.com/*",
+    "https://*.tiktok.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": [
+      "https://*.facebook.com/*",
+      "https://*.instagram.com/*",
+      "https://*.twitter.com/*",
+      "https://*.x.com/*",
+      "https://*.linkedin.com/*",
+      "https://*.reddit.com/*",
+      "https://*.tiktok.com/*"
+    ],
+    "js": ["content.js"],
+    "css": ["overlay.css"]
+  }],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "web_accessible_resources": [{
+    "resources": ["dashboard/*", "onboarding.html"],
+    "matches": ["<all_urls>"]
+  }]
+}
