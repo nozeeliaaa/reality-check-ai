@@ -1,0 +1,7 @@
+backend/start.sh
+backend/restart.sh
+backend/server.log
+backend/server.pid
+backend/venv/
+__pycache__/
+*.pyc
